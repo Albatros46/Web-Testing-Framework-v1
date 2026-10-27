@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Test çalışmasının logları: konsola ve target/logs/test-run.log dosyasına.
+  [%thread] paralel testlerde hangi satırın hangi tarayıcıya ait olduğunu gösterir.
+  Ayrıntı seviyesi: mvn test -DlogLevel=DEBUG
+-->
+<configuration>
+    <property name="PATTERN" value="%d{HH:mm:ss.SSS} %-5level [%thread] %logger{0} - %msg%n"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+        <file>target/logs/test-run.log</file>
+        <append>false</append>
+        <encoder>
+            <pattern>${PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- Kendi kodumuz: INFO. Üçüncü taraf kütüphaneler (Selenium, POI, ...) sadece WARN ve üstü. -->
+    <logger name="com.servet" level="${logLevel:-INFO}"/>
+
+    <root level="WARN">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+    </root>
+</configuration>

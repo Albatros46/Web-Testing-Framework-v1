@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
+<!--
+  Tarayıcı açmayan birim testleri: ayar katmanları ve test verisi okuyucuları. Saniyeler içinde biter;
+  CI'da UI testlerinden ÖNCE koşar, bozuksa pahalı UI işlerine hiç geçilmez.
+  Çalıştır: mvn test -Dsuite=framework
+-->
+<suite name="Framework - Unit" verbose="1">
+    <listeners>
+        <listener class-name="com.servet.framework.listeners.TestListener"/>
+        <listener class-name="com.servet.framework.listeners.AllureEnvironmentListener"/>
+    </listeners>
+    <test name="Framework Unit Tests">
+        <classes>
+            <class name="com.servet.framework.config.ConfigTest"/>
+            <class name="com.servet.saucedemo.tests.datadriven.DataReadersTest"/>
+        </classes>
+    </test>
+</suite>

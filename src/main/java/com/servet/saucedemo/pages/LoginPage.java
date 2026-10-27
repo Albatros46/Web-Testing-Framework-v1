@@ -1,0 +1,59 @@
+package com.servet.saucedemo.pages;
+
+import org.openqa.selenium.By;
+import org.openqa.selenium.WebDriver;
+
+import io.qameta.allure.Param;
+import io.qameta.allure.Step;
+import io.qameta.allure.model.Parameter;
+
+import com.servet.framework.config.Config;
+import com.servet.framework.pages.BasePage;
+
+public class LoginPage extends BasePage {
+
+    // Locator'lar SADECE sayfa sınıfında durur. Site değişirse tek bir yer güncellenir.
+    private static final By USERNAME = By.id("user-name");
+    private static final By PASSWORD = By.id("password");
+    private static final By LOGIN_BUTTON = By.id("login-button");
+    private static final By ERROR = By.cssSelector("[data-test='error']");
+
+    public LoginPage(WebDriver driver) {
+        super(driver);
+    }
+
+    @Step("Open login page")
+    public LoginPage open() {
+        driver.get(Config.baseUrl());
+        visible(LOGIN_BUTTON);
+        return this;
+    }
+
+    /** Başarılı giriş → bir sonraki sayfayı döndürür (fluent page object). */
+    @Step("Log in as {username}")
+    public InventoryPage loginAs(String username, @Param(mode = Parameter.Mode.MASKED) String password) {
+        submit(username, password);
+        return new InventoryPage(driver);
+    }
+
+    /** Başarısız giriş → aynı sayfada kalınır. */
+    @Step("Try to log in as '{username}' (error expected)")
+    public LoginPage loginExpectingError(String username, @Param(mode = Parameter.Mode.MASKED) String password) {
+        submit(username, password);
+        return this;
+    }
+
+    public String errorMessage() {
+        return text(ERROR);
+    }
+
+    public boolean isLoaded() {
+        return isDisplayed(LOGIN_BUTTON);
+    }
+
+    private void submit(String username, String password) {
+        type(USERNAME, username);
+        type(PASSWORD, password);
+        click(LOGIN_BUTTON);
+    }
+}

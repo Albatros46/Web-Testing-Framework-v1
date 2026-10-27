@@ -1,0 +1,132 @@
+name: UI Tests
+
+# Her push / PR'da: önce tarayıcısız birim testleri, geçerse UI testleri paralel job'larda.
+# Elle başlatma: Actions → UI Tests → Run workflow
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Aynı branch'e yeni push gelirse eski koşu iptal edilir
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Repo secret'ı tanımlı değilse boş gelir ve TestSecrets demo şifresine düşer
+  SAUCE_PASSWORD: ${{ secrets.SAUCE_PASSWORD }}
+
+jobs:
+  unit:
+    name: Framework unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Run framework suite (no browser)
+        run: mvn -B test -Dsuite=framework
+
+  ui:
+    name: UI - ${{ matrix.browser }}
+    needs: unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chrome, firefox]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Run UI suite on ${{ matrix.browser }}
+        run: mvn -B test -Denv=ci -Dsuite=testng -Dbrowser=${{ matrix.browser }}
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: reports-ui-${{ matrix.browser }}
+          path: |
+            target/allure-results
+            target/extent-report
+            target/screenshots
+            target/logs
+            target/surefire-reports
+          if-no-files-found: ignore
+          retention-days: 14
+
+  datadriven:
+    name: Data-driven (Excel / JSON / DB)
+    needs: unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Run data-driven suite
+        run: mvn -B test -Denv=ci -Dsuite=datadriven
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: reports-datadriven
+          path: |
+            target/allure-results
+            target/extent-report
+            target/screenshots
+            target/logs
+            target/surefire-reports
+          if-no-files-found: ignore
+          retention-days: 14
+
+  grid:
+    name: Selenium Grid (Docker)
+    needs: unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      selenium:
+        image: selenium/standalone-chrome:4.51.0-20261010
+        ports:
+          - 4444:4444
+        options: --shm-size=2g
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Wait for Grid
+        run: timeout 90 bash -c 'until curl -sf http://localhost:4444/status | grep -Eq "\"ready\": ?true"; do sleep 2; done'
+      - name: Run smoke suite on Grid
+        run: mvn -B test -Denv=grid -Dsuite=smoke
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: reports-grid
+          path: |
+            target/allure-results
+            target/extent-report
+            target/screenshots
+            target/logs
+            target/surefire-reports
+          if-no-files-found: ignore
+          retention-days: 14

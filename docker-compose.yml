@@ -1,0 +1,15 @@
+# Yerel Selenium Grid: tek konteynerde Grid + Chrome.
+#   docker compose up -d          → Grid hazır: http://localhost:4444/ui
+#   mvn test -Denv=grid           → testler tarayıcıyı konteynerde açar
+#   docker compose down
+# Sürüm, istemcideki selenium-java ile aynı (4.51.0) tutulur.
+services:
+  selenium:
+    image: selenium/standalone-chrome:4.51.0-20261010
+    ports:
+      - "4444:4444"   # WebDriver + Grid UI
+      - "7900:7900"   # noVNC: tarayıcıyı canlı izle, http://localhost:7900 (şifre: secret)
+    shm_size: 2gb     # Chrome /dev/shm küçükse sekmeler çöker
+    environment:
+      - SE_NODE_MAX_SESSIONS=4
+      - SE_NODE_OVERRIDE_MAX_SESSIONS=true

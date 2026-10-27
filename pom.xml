@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.servet</groupId>
+  <artifactId>web-testing-framework</artifactId>
+  <version>1.0.0</version>
+  <name>web-testing-framework</name>
+  <description>Reusable Selenium 4 + TestNG UI test framework (POM, parallel, Allure/Extent, data-driven, Grid, CI), demonstrated on saucedemo.com</description>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.release>21</maven.compiler.release>
+    <selenium.version>4.51.0</selenium.version>
+    <testng.version>7.12.0</testng.version>
+    <allure.version>2.35.5</allure.version>
+    <aspectj.version>1.9.26</aspectj.version>
+    <extentreports.version>5.1.2</extentreports.version>
+    <poi.version>5.5.1</poi.version>
+    <jackson.version>2.22.4</jackson.version>
+    <h2.version>2.5.252</h2.version>
+    <slf4j.version>2.0.20</slf4j.version>
+    <logback.version>1.5.38</logback.version>
+    <!-- mvn test -Dsuite=smoke -->
+    <suite>testng</suite>
+  </properties>
+
+  <dependencies>
+    <!--
+      Framework çekirdeği (src/main/java/com/servet/framework) bu kütüphaneleri doğrudan kullandığı için
+      compile scope. Sadece testleri çalıştırırken gerekenler (H2, AspectJ agent, Logback) test scope.
+    -->
+    <dependency>
+      <groupId>org.seleniumhq.selenium</groupId>
+      <artifactId>selenium-java</artifactId>
+      <version>${selenium.version}</version>
+    </dependency>
+    <!-- @Step ve Allure API'si sayfa sınıflarında kullanılıyor -->
+    <dependency>
+      <groupId>io.qameta.allure</groupId>
+      <artifactId>allure-java-commons</artifactId>
+      <version>${allure.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.testng</groupId>
+      <artifactId>testng</artifactId>
+      <version>${testng.version}</version>
+    </dependency>
+    <!-- TestNG sonuçlarını target/allure-results'a yazar (listener otomatik yüklenir) -->
+    <dependency>
+      <groupId>io.qameta.allure</groupId>
+      <artifactId>allure-testng</artifactId>
+      <version>${allure.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.aspectj</groupId>
+      <artifactId>aspectjweaver</artifactId>
+      <version>${aspectj.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.aventstack</groupId>
+      <artifactId>extentreports</artifactId>
+      <version>${extentreports.version}</version>
+    </dependency>
+    <!-- Test verisi: Excel (.xlsx) -->
+    <dependency>
+      <groupId>org.apache.poi</groupId>
+      <artifactId>poi-ooxml</artifactId>
+      <version>${poi.version}</version>
+    </dependency>
+    <!-- Test verisi: JSON -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>${jackson.version}</version>
+    </dependency>
+    <!-- Loglama: framework sadece SLF4J API'sini bilir; hangi log kütüphanesinin yazacağı test tarafında seçilir -->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <version>${slf4j.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
+      <version>${logback.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- Apache POI Log4j API ile loglar; bu köprü onları da SLF4J/Logback'e yönlendirir (sürüm = POI'nin log4j-api'si) -->
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-to-slf4j</artifactId>
+      <version>2.24.3</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- Test verisi: veritabanı (in-memory) -->
+    <dependency>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
+      <version>${h2.version}</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+        <configuration>
+          <!-- @Step("... {username}") parametre adlarını okuyabilsin diye -->
+          <parameters>true</parameters>
+        </configuration>
+      </plugin>
+      <plugin>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.5.2</version>
+        <configuration>
+          <suiteXmlFiles>
+            <suiteXmlFile>src/test/resources/suites/${suite}.xml</suiteXmlFile>
+          </suiteXmlFiles>
+          <!-- AspectJ agent: @Step ile işaretli metot çağrılarını yakalayıp Allure raporuna adım olarak yazar -->
+          <argLine>-javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar"</argLine>
+          <systemPropertyVariables>
+            <allure.results.directory>${project.build.directory}/allure-results</allure.results.directory>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+      <!-- mvn allure:report → target/site/allure-maven-plugin/index.html · mvn allure:serve → tarayıcıda açar -->
+      <plugin>
+        <groupId>io.qameta.allure</groupId>
+        <artifactId>allure-maven</artifactId>
+        <version>2.18.0</version>
+        <configuration>
+          <reportVersion>2.46.1</reportVersion>
+          <resultsDirectory>allure-results</resultsDirectory>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>
