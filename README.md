@@ -96,6 +96,16 @@ docker compose down
 
 `DriverFactory` builds the same `ChromeOptions` either way and passes them to `ChromeDriver` or to `RemoteWebDriver`. Tests, pages and listeners do not change — screenshots on failure work on the Grid too. Watch the browser live at `http://localhost:7900` (noVNC, password `secret`).
 
+Verified in CI, where the Grid runs as a service container — every browser was opened on the Grid, not on the runner's own Chrome:
+
+```
+DriverFactory - Starting chrome on Grid http://localhost:4444 (headless=true)
+TestListener  - PASS   CheckoutTest.completePurchase (1543 ms)
+TestListener  - DONE   <Smoke>: 4 passed, 0 failed, 0 skipped
+```
+
+Locally the Grid could not be started yet: Docker Desktop on my machine failed with an `input/output error` in its image store while pulling the image. The CI run above is the proof that the Grid setup works.
+
 ## Continuous integration (GitHub Actions)
 
 `.github/workflows/ui-tests.yml` runs on every push and pull request:
@@ -112,6 +122,18 @@ flowchart LR
 - The Grid job starts `selenium/standalone-chrome` as a **service container**, waits until `/status` reports ready, then runs with `-Denv=grid`.
 - Every job uploads Allure results, the Extent report, screenshots, the log file and Surefire reports as an artifact (14 days), also when tests fail.
 - `SAUCE_PASSWORD` comes from a repository secret when set; otherwise the public demo password is used.
+
+First green run ([#2](https://github.com/Albatros46/Web-Testing-Framework-v1/actions/runs/40506583902)):
+
+| Job | Tests | Test step | Job total |
+|---|---|---|---|
+| Framework unit tests | 9 | 22 s | 28 s |
+| UI · chrome | 14 | 52 s | 63 s |
+| UI · firefox | 14 | 104 s | 116 s |
+| Data-driven | 20 | 44 s | 55 s |
+| Selenium Grid | 4 | 21 s | 58 s (incl. 26 s container start) |
+
+Run #1 never started: a one-line `run:` contained `"ready": ?true`, and YAML read `: ` as a new key. Fix: a block scalar (`run: |`). Since then the workflow file is validated locally with PyYAML before pushing.
 
 ## Logging
 
