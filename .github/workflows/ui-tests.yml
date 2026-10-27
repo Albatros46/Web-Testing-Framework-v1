@@ -114,7 +114,8 @@ jobs:
           java-version: '21'
           cache: maven
       - name: Wait for Grid
-        run: timeout 90 bash -c 'until curl -sf http://localhost:4444/status | grep -Eq "\"ready\": ?true"; do sleep 2; done'
+        run: |
+          timeout 90 bash -c 'until curl -sf http://localhost:4444/status | grep -Eq "\"ready\": ?true"; do sleep 2; done'
       - name: Run smoke suite on Grid
         run: mvn -B test -Denv=grid -Dsuite=smoke
       - name: Upload reports
