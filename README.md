@@ -207,6 +207,7 @@ To prove that the framework is really reusable, v1.1.0 adds a second application
 | Dropdown | `Select.selectByVisibleText` | `DropdownPage` |
 
 Result: **16/16 in Chrome, Edge and Firefox**, also with retry turned off (`-DretryCount=0`).
+In CI ([run #4](https://github.com/Albatros46/Web-Testing-Framework-v1/actions/runs/40860170072)): 16/16 in Chrome, 16/16 in Firefox, and **16/16 on the Selenium Grid — including the file upload** (`PASS UploadTest.uploadsFile`), which proves the `LocalFileDetector` change. All 7 jobs green.
 
 ### Measured: does `Actions.dragAndDrop` work with HTML5 drag and drop?
 
