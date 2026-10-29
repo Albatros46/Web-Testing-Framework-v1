@@ -15,6 +15,7 @@ import org.openqa.selenium.edge.EdgeDriver;
 import org.openqa.selenium.edge.EdgeOptions;
 import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.firefox.FirefoxOptions;
+import org.openqa.selenium.remote.LocalFileDetector;
 import org.openqa.selenium.remote.RemoteWebDriver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -80,7 +81,11 @@ public final class DriverFactory {
 
     private static WebDriver remote(String gridUrl, Capabilities options) {
         try {
-            return new RemoteWebDriver(URI.create(gridUrl).toURL(), options);
+            RemoteWebDriver driver = new RemoteWebDriver(URI.create(gridUrl).toURL(), options);
+            // Dosya yükleme: sendKeys(yerel yol) ile verilen dosya önce Grid düğümüne kopyalanır.
+            // Bu olmadan tarayıcı dosyayı kendi (konteyner) diskinde arar ve bulamaz.
+            driver.setFileDetector(new LocalFileDetector());
+            return driver;
         } catch (MalformedURLException | IllegalArgumentException e) {
             throw new IllegalArgumentException("Geçersiz gridUrl: " + gridUrl, e);
         }

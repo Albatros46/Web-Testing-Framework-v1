@@ -1,7 +1,7 @@
 # Web Testing Framework v1 · Selenium 4 + TestNG
 
 [![UI Tests](https://github.com/Albatros46/Web-Testing-Framework-v1/actions/workflows/ui-tests.yml/badge.svg)](https://github.com/Albatros46/Web-Testing-Framework-v1/actions/workflows/ui-tests.yml)
-![Java](https://img.shields.io/badge/Java-21-orange) ![Selenium](https://img.shields.io/badge/Selenium-4.51-43B02A) ![TestNG](https://img.shields.io/badge/TestNG-7.12-red) ![Grid](https://img.shields.io/badge/Selenium%20Grid-Docker-2496ED) ![Allure](https://img.shields.io/badge/report-Allure%202-orange) ![Extent](https://img.shields.io/badge/report-ExtentReports%205-blue) ![Tests](https://img.shields.io/badge/tests-39%20passing-brightgreen)
+![Java](https://img.shields.io/badge/Java-21-orange) ![Selenium](https://img.shields.io/badge/Selenium-4.51-43B02A) ![TestNG](https://img.shields.io/badge/TestNG-7.12-red) ![Grid](https://img.shields.io/badge/Selenium%20Grid-Docker-2496ED) ![Allure](https://img.shields.io/badge/report-Allure%202-orange) ![Extent](https://img.shields.io/badge/report-ExtentReports%205-blue) ![Tests](https://img.shields.io/badge/tests-55%20passing-brightgreen)
 
 A reusable UI test framework: the generic part (`com.servet.framework`) knows nothing about the application under test; the application part (`com.servet.saucedemo`) contains only page objects and tests.
 The same tests run on a developer machine, in GitHub Actions and on a Selenium Grid in Docker — selected by one switch: `-Denv=local | ci | grid`.
@@ -45,6 +45,8 @@ src/main/java/com/servet/framework/      FRAMEWORK — reusable, no app knowledg
 
 src/main/java/com/servet/saucedemo/pages/   APPLICATION — page objects only
 src/test/java/com/servet/saucedemo/         APPLICATION — BaseTest, tests, test data, DataProviders
+src/main/java/com/servet/theinternet/pages/ SECOND APPLICATION (v1.1.0) — 12 page objects
+src/test/java/com/servet/theinternet/       SECOND APPLICATION — 16 tests, no own BaseTest
 src/test/java/com/servet/framework/         framework unit tests (no browser)
 ```
 
@@ -60,6 +62,7 @@ src/test/java/com/servet/framework/         framework unit tests (no browser)
 | `mvn test -Dsuite=datadriven` | 20 tests driven by Excel, JSON and an H2 database |
 | `mvn test -Dsuite=parallel` | 14 tests in 4 threads |
 | `mvn test -Dsuite=cross-browser` | smoke tests in Chrome, Edge and Firefox at the same time |
+| `mvn test -Dsuite=the-internet` | 16 hard scenarios on the-internet.herokuapp.com (second application) |
 | `mvn test -Dsuite=demo` | listener demo: a real bug with screenshot + a flaky test passing on retry (red on purpose) |
 | `mvn test -Dbrowser=firefox -DretryCount=0` | override any single setting |
 | `mvn test -DlogLevel=DEBUG` | more log detail |
@@ -113,9 +116,9 @@ Locally the Grid could not be started yet: Docker Desktop on my machine failed w
 ```mermaid
 flowchart LR
     U["unit<br/>framework suite<br/>no browser"] --> C["UI · chrome"]
-    U --> F["UI · firefox"]
+    U --> F["UI · firefox<br/>testng + the-internet"]
     U --> DD["data-driven<br/>Excel · JSON · DB"]
-    U --> GR["Selenium Grid<br/>service container"]
+    U --> GR["Selenium Grid<br/>smoke + the-internet"]
 ```
 
 - The cheap job runs first; if the framework itself is broken, no browser job starts.
@@ -179,7 +182,47 @@ Log messages are plain ASCII on purpose: the Windows console turned `▶ ✔` an
 
 3. Add the class to a suite in `src/test/resources/suites/`. Logging, screenshots, retry and both reports come from the listeners — no extra code.
 
-To test a **different application**, keep `com.servet.framework` and write a new `pages` + `BaseTest` package.
+To test a **different application**, keep `com.servet.framework` and write a new `pages` package — done for the-internet in v1.1.0, see below.
+
+## A second application: the-internet (v1.1.0)
+
+To prove that the framework is really reusable, v1.1.0 adds a second application, [the-internet.herokuapp.com](https://the-internet.herokuapp.com) — a site full of scenarios that are known to be hard to automate. It completes **Week 11** of the roadmap.
+
+- **Framework changes: one.** `DriverFactory` gives `RemoteWebDriver` a `LocalFileDetector`, so a file upload also works on the Grid (the file is on the test machine, the browser in a container).
+- The tests extend the framework's `BaseWebTest` directly — this application does not even need its own `BaseTest`.
+- `com.servet.theinternet` imports nothing from `com.servet.saucedemo`, and the framework imports neither.
+
+| Scenario | How | Page |
+|---|---|---|
+| JS alert · confirm · prompt | `wait.until(alertIsPresent())`, `accept()` / `dismiss()` / `sendKeys()` | `AlertsPage` |
+| Nested frames | `frameToBeAvailableAndSwitchToIt`, always back to `defaultContent()` in `finally` | `NestedFramesPage` |
+| New window | window handles, `numberOfWindowsToBe(2)`, close and switch back | `WindowsPage` |
+| File upload | `sendKeys(path)` on `input[type=file]` with a temp file created by the test | `UploadPage` |
+| Element hidden / added later | the same explicit wait for both; the test first checks *which* case it is | `DynamicLoadingPage` |
+| Checkbox removed · input enabled | `invisibilityOfElementLocated`, `elementToBeClickable` | `DynamicControlsPage` |
+| Hover · right-click | `Actions.moveToElement`, `Actions.contextClick` + alert | `HoversPage`, `ContextMenuPage` |
+| HTML5 drag and drop | HTML5 drag events via JavaScript (see measurement below) | `DragAndDropPage` |
+| Shadow DOM | `getShadowRoot()`; the test also checks that a normal CSS search does **not** reach inside | `ShadowDomPage` |
+| Broken images | `naturalWidth === 0` in the browser **and** the HTTP status of every image (404 / 200) | `BrokenImagesPage` |
+| Dropdown | `Select.selectByVisibleText` | `DropdownPage` |
+
+Result: **16/16 in Chrome, Edge and Firefox**, also with retry turned off (`-DretryCount=0`).
+
+### Measured: does `Actions.dragAndDrop` work with HTML5 drag and drop?
+
+A common claim is that Selenium's mouse actions cannot do HTML5 drag and drop. Measured with Selenium 4.51:
+
+| Browser | `Actions.dragAndDrop` | HTML5 drag events via JavaScript |
+|---|---|---|
+| Chrome | ✅ columns swap | ✅ |
+| Edge | ✅ columns swap | ✅ |
+| Firefox | ❌ nothing happens | ✅ |
+
+So the claim is out of date for Chromium but still true for Firefox. The test uses the JavaScript way because it works in all three.
+
+### A real timing bug found by Firefox
+
+In Firefox, `newWindowIsReadAndClosed` failed — also on retry: the new window's title was read as `""`. Firefox finishes the switch to the new window before the page has loaded; in Chrome the test only passed by luck. Fix: wait for the content, then for a non-empty title. A retry would never have fixed this, which is exactly why a test that fails twice the same way has to be looked at, not re-run.
 
 ## Design rules
 
@@ -192,15 +235,16 @@ To test a **different application**, keep `com.servet.framework` and write a new
 | Retry only browser start-up automatically; test retry is visible | A retried test shows up as *skipped + passed* and must be investigated. |
 | No secrets in test data or reports | `{{password}}` placeholder + `MaskedParameterScrubber` (see [Week 11](https://github.com/Albatros46/saucedemo-selenium-pom#keeping-the-password-out-of-every-report)). |
 
-## Tests (39)
+## Tests (55)
 
 | Suite | Tests | Browser |
 |---|---|---|
 | `framework` | 9 — `ConfigTest` (5) · `DataReadersTest` (4) | none |
 | `testng` | 14 — `LoginTest` · `InventoryTest` · `CheckoutTest` | yes |
 | `datadriven` | 20 — Excel (7) · JSON (3) · H2 database (6) · `DataReadersTest` (4) | yes |
+| `the-internet` | 16 — alerts · frames · windows · upload · dynamic content · mouse actions · shadow DOM · broken images · dropdown | yes |
 
-`DataReadersTest` runs in both `framework` and `datadriven`; counted once, that is **39 tests**.
+`DataReadersTest` runs in both `framework` and `datadriven`; counted once, that is **55 tests**.
 
 ## What I learned
 - _TODO: 2–3 sentences in your own words_

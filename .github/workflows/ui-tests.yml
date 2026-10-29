@@ -36,13 +36,14 @@ jobs:
         run: mvn -B test -Dsuite=framework
 
   ui:
-    name: UI - ${{ matrix.browser }}
+    name: UI - ${{ matrix.suite }} - ${{ matrix.browser }}
     needs: unit
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
+        suite: [testng, the-internet]
         browser: [chrome, firefox]
     steps:
       - uses: actions/checkout@v7
@@ -51,13 +52,13 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
-      - name: Run UI suite on ${{ matrix.browser }}
-        run: mvn -B test -Denv=ci -Dsuite=testng -Dbrowser=${{ matrix.browser }}
+      - name: Run ${{ matrix.suite }} on ${{ matrix.browser }}
+        run: mvn -B test -Denv=ci -Dsuite=${{ matrix.suite }} -Dbrowser=${{ matrix.browser }}
       - name: Upload reports
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: reports-ui-${{ matrix.browser }}
+          name: reports-ui-${{ matrix.suite }}-${{ matrix.browser }}
           path: |
             target/allure-results
             target/extent-report
@@ -118,6 +119,10 @@ jobs:
           timeout 90 bash -c 'until curl -sf http://localhost:4444/status | grep -Eq "\"ready\": ?true"; do sleep 2; done'
       - name: Run smoke suite on Grid
         run: mvn -B test -Denv=grid -Dsuite=smoke
+      # File upload on a Grid needs LocalFileDetector (DriverFactory); this step proves it
+      - name: Run the-internet suite on Grid
+        if: success() || failure()
+        run: mvn -B test -Denv=grid -Dsuite=the-internet
       - name: Upload reports
         if: always()
         uses: actions/upload-artifact@v7
